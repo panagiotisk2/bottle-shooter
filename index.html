@@ -2,122 +2,56 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Sage Shooting Range — Bottles</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Sage Shooting — Mobile Friendly (5s Respawn, Real Bottles)</title>
 <style>
-  :root {
-    --bg: #0e0f12;
-    --panel: #1b1e24;
-    --accent: #ffcc00;
-    --text: #e9eef5;
+  :root { --accent:#ffcc00; --text:#e9eef5; }
+  *{box-sizing:border-box; touch-action:none;}
+  html,body{height:100%; margin:0; background:#0e0f12; color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+  .wrap{ position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  canvas{ width:100vw; height:100vh; background:#30343b; display:block; }
+  .hud{ position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; gap:8px; font-weight:700; text-shadow:0 2px 2px rgba(0,0,0,.4); font-size:14px; }
+  .pill{ background:rgba(0,0,0,.35); padding:6px 10px; border-radius:999px; }
+  .overlay, .tapstart {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:14px;
+    background:rgba(0,0,0,.6); text-align:center; padding:24px;
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    background: radial-gradient(1200px 600px at 50% 30%, #222833, #0e0f12);
-    color: var(--text);
-    display: grid;
-    place-items: center;
-    min-height: 100vh;
+  .overlay{ display:none; }
+  .overlay.show{ display:flex; }
+  h1{ margin:.2em 0; font-size: clamp(20px, 5vw, 36px); }
+  button{
+    background:var(--accent); color:#111; border:none; border-radius:12px; padding:12px 18px; font-weight:800; letter-spacing:.2px;
+    box-shadow:0 6px 24px rgba(0,0,0,.35);
   }
-  .wrap {
-    width: min(1280px, 95vw);
-    aspect-ratio: 16 / 9;
-    position: relative;
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.04);
-    overflow: hidden;
+  .crosshair{
+    position:absolute; width:28px; height:28px; pointer-events:none; transform:translate(-50%,-50%);
   }
-  canvas {
-    width: 100%; height: 100%;
-    display: block;
-    background: #30343b;
-    /* Soft vignette */
-    box-shadow: inset 0 0 240px rgba(0,0,0,.6);
-    cursor: none; /* We'll draw our own crosshair */
+  .crosshair:before, .crosshair:after{
+    content:""; position:absolute; left:13px; top:0; bottom:0; width:2px; background:#ffd84d;
   }
-  .hud {
-    position: absolute; inset: 0;
-    pointer-events: none;
-    padding: 14px 18px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: start;
-    font-weight: 600;
-    text-shadow: 0 2px 2px rgba(0,0,0,.4);
-  }
-  .hud .left {
-    display: flex; gap: 16px; align-items: center;
-    background: linear-gradient(90deg, rgba(0,0,0,.35), rgba(0,0,0,0));
-    padding: 8px 12px;
-    border-radius: 12px;
-  }
-  .hud .right {
-    justify-self: end;
-    background: linear-gradient(270deg, rgba(0,0,0,.35), rgba(0,0,0,0));
-    padding: 8px 12px;
-    border-radius: 12px;
-  }
-  .kbd {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    background: #121418;
-    border: 1px solid #2b2f37;
-    padding: 2px 6px;
-    border-radius: 6px;
-    font-size: .9rem;
-  }
-  .overlay {
-    position: absolute; inset: 0;
-    background: rgba(8,10,12,.68);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-    text-align: center;
-    backdrop-filter: blur(2px);
-  }
-  .overlay.show { display: flex; }
-  .overlay h1 {
-    margin: 0; font-size: clamp(26px, 3vw, 42px);
-  }
-  .overlay button {
-    pointer-events: auto;
-    background: var(--accent);
-    border: none; color: #111;
-    font-weight: 800; letter-spacing: .2px;
-    padding: 12px 18px; border-radius: 12px;
-    box-shadow: 0 6px 24px rgba(0,0,0,.35);
-    cursor: pointer;
-  }
-  .footer {
-    position: absolute; bottom: 8px; width: 100%;
-    text-align: center;
-    font-size: 12px; opacity: .8;
-    pointer-events: none;
-  }
+  .crosshair:after{ left:0; right:0; top:13px; height:2px; width:auto; }
+  .dot{ position:absolute; left:13px; top:13px; width:2px; height:2px; background:#ffd84d; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <canvas id="game" width="1280" height="720"></canvas>
-    <div class="hud">
-      <div class="left">
-        <div>Score: <span id="score">0</span></div>
-        <div>Active Bottles: <span id="active">10</span>/10</div>
-        <div>Goal: shoot all before any respawn</div>
-      </div>
-      <div class="right">
-        <span class="kbd">Move mouse</span>&nbsp;to aim • <span class="kbd">Click</span>&nbsp;to shoot
-      </div>
-    </div>
-    <div id="overlay" class="overlay">
-      <h1 id="message">You Win! 🥇</h1>
-      <button id="restart">Play again</button>
-      <div class="footer">Tip: bottles respawn 10s after being shot — clear all 10 at once to win.</div>
-    </div>
+<div class="wrap">
+  <canvas id="game" width="720" height="1280"></canvas>
+  <div class="crosshair" id="xh"><div class="dot"></div></div>
+  <div class="hud">
+    <div class="pill">Score: <span id="score">0</span></div>
+    <div class="pill">Active: <span id="active">10</span>/10</div>
+    <div class="pill">Goal: clear all before any respawn (5s)</div>
   </div>
+  <div id="tapstart" class="tapstart">
+    <h1>Tap to Start</h1>
+    <div>Move your finger to aim • Tap to shoot</div>
+    <button id="startBtn">Start</button>
+  </div>
+  <div id="overlay" class="overlay">
+    <h1 id="message">ISE O KALLITEROS TZINIOS POU KSERO 🎉</h1>
+    <button id="restart">Play again</button>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -128,26 +62,39 @@
   const restartBtn = document.getElementById('restart');
   const scoreEl = document.getElementById('score');
   const activeEl = document.getElementById('active');
+  const tapstart = document.getElementById('tapstart');
+  const startBtn = document.getElementById('startBtn');
+  const crosshair = document.getElementById('xh');
 
-  // ---- Config ----
+  // Fit canvas to device pixels
+  function fitCanvas(){
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = w;
+    canvas.height = h;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+  }
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+
+  // ---- Config (updated) ----
+  const RESPAWN_MS = 5000; // 5 seconds (harder)
   const BOTTLE_COUNT = 10;
-  const RESPAWN_MS = 10000; // 10 seconds
-  const BOTTLE_R = 22; // radius in pixels
-  const HIT_R = 26; // hit radius (slightly forgiving)
-  const FLOOR_Y = canvas.height - 120;
+  const HIT_R = 28; // hit radius around bottle center
+  let FLOOR_Y = canvas.height - 180;
 
-  // ---- State ----
+  // State
   let bottles = [];
   let score = 0;
   let gameWon = false;
-  let mouse = { x: canvas.width/2, y: canvas.height/2 };
   let startedAudio = false;
+  let mouse = { x: canvas.width/2, y: canvas.height/2 };
 
-  // WebAudio for music & sfx (no external files needed)
+  // Audio (WebAudio, generated — no external files)
   const audio = {
-    ctx: null,
-    master: null,
-    musicNode: null,
+    ctx: null, master: null,
     start() {
       if (this.ctx) return;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -155,253 +102,240 @@
       this.master = this.ctx.createGain();
       this.master.gain.value = 0.25;
       this.master.connect(this.ctx.destination);
-      // Background "ambient" pad using two detuned saws + lowpass
-      const osc1 = this.ctx.createOscillator();
-      const osc2 = this.ctx.createOscillator();
-      osc1.type = 'sawtooth'; osc2.type = 'sawtooth';
-      osc1.frequency.value = 110; // A2
-      osc2.frequency.value = 110 * Math.pow(2, 3/12); // C3-ish
-      osc2.detune.value = 6;
-      const lp = this.ctx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = 340;
-      const musGain = this.ctx.createGain();
-      musGain.gain.value = 0.08;
-      osc1.connect(lp); osc2.connect(lp);
-      lp.connect(musGain); musGain.connect(this.master);
-      osc1.start(); osc2.start();
-      this.musicNode = { osc1, osc2, lp, musGain };
-    },
-    // Gun "bang": short noise burst + low sine thump
-    gunshot() {
-      if (!this.ctx) return;
-      const t = this.ctx.currentTime;
-      // Noise burst
-      const bufferSize = this.ctx.sampleRate * 0.08;
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i=0;i<buffer.length;i++) data[i] = (Math.random()*2-1) * (1 - i/buffer.length);
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buffer;
-      const ng = this.ctx.createGain(); ng.gain.setValueAtTime(0.6, t); ng.gain.exponentialRampToValueAtTime(0.001, t+0.08);
-      const hp = this.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value = 1200;
-      noise.connect(hp); hp.connect(ng); ng.connect(this.master);
-      noise.start();
-      // Thump
-      const osc = this.ctx.createOscillator();
-      const og = this.ctx.createGain();
-      osc.type='sine'; osc.frequency.setValueAtTime(180, t); osc.frequency.exponentialRampToValueAtTime(60, t+0.12);
-      og.gain.setValueAtTime(0.4, t); og.gain.exponentialRampToValueAtTime(0.001, t+0.12);
-      osc.connect(og); og.connect(this.master);
-      osc.start(t); osc.stop(t+0.13);
-    },
-    // Glass "ting": two short square beeps descending
-    glass() {
-      if (!this.ctx) return;
-      const t = this.ctx.currentTime;
-      const mk = (freq, dur=0.1) => {
-        const o=this.ctx.createOscillator(); o.type='square'; o.frequency.value=freq;
-        const g=this.ctx.createGain(); g.gain.value=0.15;
-        o.connect(g); g.connect(this.master);
-        o.start(t);
-        o.stop(t+dur);
-        // quick decay
-        g.gain.setValueAtTime(0.15,t);
-        g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+      // Simple ambient pad
+      const mkPad = (freq, gain=0.06) => {
+        const o=this.ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=freq;
+        const lp=this.ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=300;
+        const g=this.ctx.createGain(); g.gain.value=gain;
+        o.connect(lp); lp.connect(g); g.connect(this.master); o.start();
       };
-      mk(1600, 0.06);
-      mk(1200, 0.08);
+      mkPad(110); mkPad(110*Math.pow(2,3/12), 0.05);
+    },
+    gunshot(){
+      if (!this.ctx) return;
+      const t=this.ctx.currentTime;
+      // noise pop
+      const nbuf = this.ctx.createBuffer(1, this.ctx.sampleRate*0.06, this.ctx.sampleRate);
+      const data = nbuf.getChannelData(0);
+      for (let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*(1-i/data.length);
+      const src=this.ctx.createBufferSource(); src.buffer=nbuf;
+      const g=this.ctx.createGain(); g.gain.setValueAtTime(0.7,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+      const hp=this.ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1100;
+      src.connect(hp); hp.connect(g); g.connect(this.master); src.start();
+    },
+    glass(){
+      if (!this.ctx) return;
+      const t=this.ctx.currentTime;
+      const o=this.ctx.createOscillator(); o.type='square';
+      const g=this.ctx.createGain();
+      o.frequency.setValueAtTime(1700,t); o.frequency.exponentialRampToValueAtTime(950,t+0.09);
+      g.gain.setValueAtTime(0.18,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.09);
+      o.connect(g); g.connect(this.master); o.start(t); o.stop(t+0.1);
     }
   };
 
-  // Helpers
   function rand(min,max){ return Math.random()*(max-min)+min; }
-  function dist(a,b,x,y){ const dx=a-x, dy=b-y; return Math.hypot(dx,dy); }
 
-  function spawnBottle() {
-    // Try random positions, keep inside bounds and above floor
-    let tries = 0;
-    while (tries++ < 200) {
-      const x = rand(80, canvas.width-80);
-      const y = rand(140, FLOOR_Y - 20);
-      // Avoid clustering too close
-      let ok = true;
-      for (const b of bottles) {
-        if (b.active && dist(x,y,b.x,b.y) < BOTTLE_R*2.2) { ok=false; break; }
+  // Spawn bottles with spacing
+  function spawnBottle(existing){
+    let tries=0;
+    while (tries++<300){
+      const x=rand(60, canvas.width-60);
+      const y=rand(140, FLOOR_Y-20);
+      let ok=true;
+      for (const b of existing){
+        if (b.active){
+          const dx=x-b.x, dy=y-b.y;
+          if (Math.hypot(dx,dy) < 64){ ok=false; break; }
+        }
       }
-      if (ok) return { x, y, active: true, respawnAt: 0 };
+      if (ok) return {x,y,active:true,respawnAt:0};
     }
-    // Fallback
-    return { x: rand(120, canvas.width-120), y: rand(160, FLOOR_Y-40), active: true, respawnAt: 0 };
+    return {x:canvas.width*0.5,y:canvas.height*0.5,active:true,respawnAt:0};
   }
 
-  function resetGame() {
-    score = 0; gameWon = false;
-    bottles = [];
-    for (let i=0;i<BOTTLE_COUNT;i++) bottles.push(spawnBottle());
+  function resetGame(){
+    score=0; gameWon=false;
+    bottles.length=0;
+    FLOOR_Y = canvas.height - Math.max(140, Math.min(220, canvas.height*0.18));
+    for (let i=0;i<BOTTLE_COUNT;i++) bottles.push(spawnBottle(bottles));
     overlay.classList.remove('show');
     updateHUD();
   }
 
-  function updateHUD() {
-    const active = bottles.filter(b => b.active).length;
-    scoreEl.textContent = score.toString();
-    activeEl.textContent = active.toString();
+  function updateHUD(){
+    const active=bottles.filter(b=>b.active).length;
+    scoreEl.textContent = String(score);
+    activeEl.textContent = String(active);
   }
 
-  // Visual "garage" background
-  function drawGarage() {
-    // walls
-    const g = ctx.createLinearGradient(0,0,0,canvas.height);
-    g.addColorStop(0, '#3a414a');
-    g.addColorStop(1, '#24292f');
-    ctx.fillStyle = g;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    // floor
-    ctx.fillStyle = '#2a2f35';
-    ctx.fillRect(0,FLOOR_Y,canvas.width,canvas.height-FLOOR_Y);
-    // pillars
-    ctx.fillStyle = '#2f353d';
-    for (let i=0;i<6;i++){
-      const x = 80 + i*220;
-      ctx.fillRect(x, 0, 22, FLOOR_Y);
+  // Garage background (drawn)
+  function drawGarage(){
+    const g=ctx.createLinearGradient(0,0,0,canvas.height);
+    g.addColorStop(0,'#3a414a'); g.addColorStop(1,'#24292f');
+    ctx.fillStyle=g; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#2a2f35'; ctx.fillRect(0,FLOOR_Y,canvas.width,canvas.height-FLOOR_Y);
+    ctx.fillStyle='#2f353d';
+    const count = Math.floor(canvas.width/180);
+    for (let i=0;i<count;i++){
+      const x=60+i*180; ctx.fillRect(x,0,18,FLOOR_Y);
     }
-    // shelves
-    ctx.fillStyle = '#1f242a';
-    for (let y=220;y<FLOOR_Y-80;y+=120){
-      ctx.fillRect(60, y, canvas.width-120, 8);
-    }
-    // vignette
-    const rad = ctx.createRadialGradient(canvas.width/2, canvas.height*0.35, 80, canvas.width/2, canvas.height*0.6, canvas.width*0.65);
-    rad.addColorStop(0, 'rgba(0,0,0,0)');
-    rad.addColorStop(1, 'rgba(0,0,0,0.6)');
-    ctx.fillStyle = rad;
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    // soldier (simple silhouette)
-    const sx = canvas.width/2 - 60, sy = FLOOR_Y - 20;
-    ctx.fillStyle = '#171a1f';
-    ctx.fillRect(sx, sy-60, 120, 60); // body
-    ctx.fillStyle = '#1d2026';
-    ctx.beginPath();
-    ctx.arc(canvas.width/2, sy-80, 22, 0, Math.PI*2); // head
-    ctx.fill();
-    // gun barrel
-    ctx.fillStyle = '#14171c';
-    ctx.fillRect(canvas.width/2 + 30, sy-70, 70, 10);
+    const rad=ctx.createRadialGradient(canvas.width/2, canvas.height*0.4, 60, canvas.width/2, canvas.height*0.65, Math.max(canvas.width,canvas.height)*0.7);
+    rad.addColorStop(0,'rgba(0,0,0,0)'); rad.addColorStop(1,'rgba(0,0,0,0.55)');
+    ctx.fillStyle=rad; ctx.fillRect(0,0,canvas.width,canvas.height);
+    // Soldier silhouette
+    const sx=canvas.width/2-50, sy=FLOOR_Y-20;
+    ctx.fillStyle='#171a1f'; ctx.fillRect(sx, sy-50, 100, 50);
+    ctx.fillStyle='#1d2026'; ctx.beginPath(); ctx.arc(canvas.width/2, sy-70, 18, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle='#14171c'; ctx.fillRect(canvas.width/2+25, sy-60, 60, 8);
   }
 
-  function drawBottle(b) {
-    // Draw a stylized bottle shape (circle + neck) with a glass gradient
+  // Draw a more realistic bottle silhouette (vector path)
+  function drawBottle(b){
     const x=b.x, y=b.y;
     ctx.save();
     ctx.translate(x,y);
-    // shadow
-    ctx.shadowColor = 'rgba(0,0,0,.45)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 6;
-    // bottle body
-    const grad = ctx.createLinearGradient(0, -BOTTLE_R-28, 0, BOTTLE_R);
-    grad.addColorStop(0, '#8ec6ff');
+    ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=10; ctx.shadowOffsetY=5;
+
+    // Bottle dimensions
+    const H = 74;   // total height
+    const W = 30;   // body width
+    const neckW = 14;
+    const neckH = 18;
+    const shoulderH = 10;
+    const bodyH = H - neckH - shoulderH - 8; // minus base radius
+    const baseR = 10;
+
+    // Glass gradient
+    const grad = ctx.createLinearGradient(0, -H/2, 0, H/2);
+    grad.addColorStop(0, '#bfe0ff');
+    grad.addColorStop(0.55, '#7fb7ff');
     grad.addColorStop(1, '#0a85ff');
+
     ctx.fillStyle = grad;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1.2;
+
     ctx.beginPath();
-    ctx.arc(0,0,BOTTLE_R,0,Math.PI*2);
+    // Start at neck top-left
+    ctx.moveTo(-neckW/2, -H/2);
+    ctx.lineTo(neckW/2, -H/2);
+    ctx.lineTo(neckW/2, -H/2 + neckH);
+    // shoulders outwards
+    ctx.quadraticCurveTo(neckW/2, -H/2 + neckH + shoulderH*0.3, W/2, -H/2 + neckH + shoulderH);
+    // down right body
+    ctx.lineTo(W/2, -H/2 + neckH + shoulderH + bodyH - baseR);
+    // base right arc
+    ctx.quadraticCurveTo(W/2, -H/2 + neckH + shoulderH + bodyH, W/2 - baseR, -H/2 + neckH + shoulderH + bodyH);
+    // bottom arc to left
+    ctx.lineTo(-W/2 + baseR, -H/2 + neckH + shoulderH + bodyH);
+    ctx.quadraticCurveTo(-W/2, -H/2 + neckH + shoulderH + bodyH, -W/2, -H/2 + neckH + shoulderH + bodyH - baseR);
+    // up left body
+    ctx.lineTo(-W/2, -H/2 + neckH + shoulderH);
+    // shoulders inwards
+    ctx.quadraticCurveTo(-neckW/2, -H/2 + neckH + shoulderH*0.3, -neckW/2, -H/2 + neckH);
+    ctx.closePath();
     ctx.fill();
-    // neck
-    ctx.fillStyle = '#7ab6fb';
-    ctx.fillRect(-8, -BOTTLE_R-28, 16, 28);
-    // highlight
-    ctx.globalAlpha = 0.22;
+    ctx.stroke();
+
+    // neck highlight
+    ctx.globalAlpha = 0.16;
     ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-neckW/2 + 1.5, -H/2 + 2, 3, neckH-4);
+    ctx.globalAlpha = 1;
+
+    // subtle specular
+    ctx.globalAlpha = 0.18;
     ctx.beginPath();
-    ctx.arc(-8, -8, BOTTLE_R*0.55, 0, Math.PI*2);
+    ctx.ellipse(-W*0.22, -H*0.05, 6, 16, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.globalAlpha = 1;
+
     ctx.restore();
   }
 
-  function drawCrosshair() {
-    ctx.save();
-    ctx.strokeStyle = '#ffd84d';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(mouse.x-14, mouse.y); ctx.lineTo(mouse.x-4, mouse.y);
-    ctx.moveTo(mouse.x+14, mouse.y); ctx.lineTo(mouse.x+4, mouse.y);
-    ctx.moveTo(mouse.x, mouse.y-14); ctx.lineTo(mouse.x, mouse.y-4);
-    ctx.moveTo(mouse.x, mouse.y+14); ctx.lineTo(mouse.x, mouse.y+4);
-    ctx.stroke();
-    // dot
-    ctx.fillStyle = '#ffd84d';
-    ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, 2, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
+  function drawCrosshair(){
+    crosshair.style.left = (mouse.x / (canvas.width) * window.innerWidth) + 'px';
+    crosshair.style.top  = (mouse.y / (canvas.height) * window.innerHeight) + 'px';
   }
 
-  function update(dt, now) {
-    // Respawns
-    let activeCount = 0;
-    for (const b of bottles) {
-      if (!b.active && now >= b.respawnAt) {
-        // respawn at new random location
-        const nb = spawnBottle();
-        b.x = nb.x; b.y = nb.y; b.active = true; b.respawnAt = 0;
+  function update(now){
+    let activeCount=0;
+    for (const b of bottles){
+      if (!b.active && now >= b.respawnAt){
+        const nb = spawnBottle(bottles);
+        b.x=nb.x; b.y=nb.y; b.active=true; b.respawnAt=0;
       }
       if (b.active) activeCount++;
     }
-    if (!gameWon && activeCount === 0 && bottles.length === BOTTLE_COUNT) {
-      gameWon = true;
-      message.textContent = "You cleared them all! 🥇";
+    if (!gameWon && activeCount===0){
+      gameWon=true;
+      // Custom win text provided by you:
+      message.textContent = "ISE O KALLITEROS TZINIOS POU KSERO 🎉";
       overlay.classList.add('show');
     }
     updateHUD();
   }
 
-  function render() {
+  function render(){
     drawGarage();
     for (const b of bottles) if (b.active) drawBottle(b);
-    drawCrosshair();
   }
 
   let last = performance.now();
-  function loop(now) {
-    const dt = Math.min(32, now - last); last = now;
-    update(dt, now);
+  function loop(now){
     render();
+    update(now);
+    drawCrosshair();
     requestAnimationFrame(loop);
   }
 
-  canvas.addEventListener('mousemove', (e) => {
+  function screenToCanvas(px, py){
     const rect = canvas.getBoundingClientRect();
-    mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
-  });
+    const x = (px - rect.left) * (canvas.width / rect.width);
+    const y = (py - rect.top) * (canvas.height / rect.height);
+    return {x, y};
+  }
 
-  canvas.addEventListener('mousedown', (e) => {
-    if (!startedAudio) { audio.start(); startedAudio = true; }
+  // Pointer (touch/mouse) support
+  function aimAt(clientX, clientY){
+    const p = screenToCanvas(clientX, clientY);
+    mouse.x = p.x; mouse.y = p.y;
+  }
+
+  window.addEventListener('pointermove', (e)=>{
+    aimAt(e.clientX, e.clientY);
+  }, {passive:false});
+
+  window.addEventListener('pointerdown', (e)=>{
+    if (!startedAudio){ audio.start(); startedAudio=true; }
+    if (tapstart) tapstart.style.display='none';
     if (gameWon) return;
     audio.gunshot();
-    // Hit detection: pick nearest active bottle within HIT_R
-    let hitIndex = -1, hitDist = Infinity;
+    // hit test
+    let hitIndex=-1, hitDist=Infinity;
     for (let i=0;i<bottles.length;i++){
-      const b = bottles[i];
-      if (!b.active) continue;
-      const d = dist(mouse.x, mouse.y, b.x, b.y);
-      if (d < HIT_R && d < hitDist) { hitDist = d; hitIndex = i; }
+      const b=bottles[i]; if (!b.active) continue;
+      const d = Math.hypot(mouse.x - b.x, mouse.y - b.y);
+      if (d < HIT_R && d < hitDist){ hitDist=d; hitIndex=i; }
     }
-    if (hitIndex >= 0) {
-      const b = bottles[hitIndex];
-      b.active = false;
-      b.respawnAt = performance.now() + RESPAWN_MS;
-      score += 10;
-      audio.glass();
+    if (hitIndex>=0){
+      const b=bottles[hitIndex];
+      b.active=false; b.respawnAt=performance.now()+RESPAWN_MS;
+      score+=10; audio.glass(); updateHUD();
     }
-    updateHUD();
-  });
+  }, {passive:false});
 
-  restartBtn.addEventListener('click', () => {
+  restartBtn.addEventListener('click', ()=>{
     resetGame();
+    overlay.classList.remove('show');
   });
 
-  // Kickoff
+  startBtn.addEventListener('click', ()=>{
+    if (!startedAudio){ audio.start(); startedAudio=true; }
+    tapstart.style.display='none';
+  });
+
   resetGame();
   requestAnimationFrame(loop);
 })();
